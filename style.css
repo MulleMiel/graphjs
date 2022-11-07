@@ -1,0 +1,43 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: #cccccc;
+  margin: 0;
+  overflow-y: scroll;
+}
+#wrapper {
+  padding: 60px;
+  position: relative;
+}
+
+#canvas-ui {
+  position: relative;
+}
+
+#canvas {
+  display: block;
+  background-color: white;
+}
+
+#buttons-zoom {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  padding: 20px;
+}
+
+#buttons-zoom .button {
+  background-color: black;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  width: 30px;
+  height: 30px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+}
