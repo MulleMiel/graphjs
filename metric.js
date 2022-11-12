@@ -11,8 +11,7 @@ function getMousePos(e) {
 
 class Canvas {
   constructor(){
-    this.mouseX = 0;
-    this.mouseY = 0;
+    this.mouse = new Vector();
     this.isMouseDown = false;
 
     window.addEventListener('resize', this.resizeCanvas, false);
@@ -44,8 +43,7 @@ class Canvas {
 
   mouseMove(e){
     const pos = getMousePos(e);
-    this.mouseX = pos.x;
-    this.mouseY = pos.y;
+    this.mouse.setXY(pos.x, -pos.y)
   }
 
   mouseDown(){
@@ -58,8 +56,7 @@ class Canvas {
 
   getMouse(){
     return {
-      x: this.mouseX,
-      y: this.mouseY,
+      pos: this.mouse,
       isMouseDown: this.isMouseDown
     }
   }
@@ -67,17 +64,13 @@ class Canvas {
 
 class Grid {
   constructor(){
-    this.offsetX = 100;
-    this.offsetY = 100;
-    this.gridWidth = 300;
-    this.gridHeight = 300;
-    this.originX = 200;
-    this.originY = 200;
+    this.offset = new Vector(100, 100);
+    this.gridDim = new Vector(300, 300);
+    this.origin = new Vector(200, 200);
     this.zoomSteps = 10;
     this.zoomStep = 5;
     this.scaleStep = 0;
-    this.scaleX = 1;
-    this.scaleY = 1;
+    this.scale = new Vector(1, 1);
     this.ppm = 62.5; // px per meter
     this.spacing1 = 100;
     this.color1 = "#999999";
@@ -86,13 +79,10 @@ class Grid {
     this.textColor = "#000000";
     this.axisTextOffset = 20;
 
-    this.mouseX = null;
-    this.mouseY = null; 
-    this.lastDragX = null;
-    this.lastDragY = null;
+    this.mouse = null;
+    this.lastDrag = null;
 
-    this.velocityX = 0;
-    this.velocityY = 0;
+    this.velocity = new Vector();
     this.friction = 0.05;
 
     this.points = [];
@@ -124,37 +114,26 @@ class Grid {
     }
   }
 
-  applyZoom(deltaScaleX, deltaScaleY, withMouse){
+  applyZoom(deltaScale, withMouse){
     const zoomFactor = 1 + this.zoomStep / this.zoomSteps;
     const prevPpm = this.ppm;
     this.ppm = this.spacing1 * zoomFactor;
 
-    if(this.mouseX !== null){
-      const mousePxX = withMouse ? // Zoom to:
-        this.mouseX - this.originX - this.offsetX : // Center off mouse X
-        -this.originX + this.gridWidth / 2; // Center off canvas width
+    if(this.mouse !== null){
+      const mousePx = withMouse ? // Zoom to:
+        Vector.sub(this.mouse, this.origin) : // Center off mouse
+        Vector.sub(Vector.div(this.gridDim, 2), this.origin); // Center off canvas
 
-      const mousePxY = withMouse ?  // Zoom to:
-        this.gridHeight - this.originY - this.mouseY : // Center off mouse Y
-        -this.originY + this.gridHeight / 2; // Center off height
-
-      if(deltaScaleX === 0){
+      if(deltaScale.x === 0){
         const factor = 1 + (this.ppm - prevPpm) / prevPpm;
-        const deltaMousePxX = mousePxX - mousePxX * factor;
-        const deltaMousePxY = mousePxY - mousePxY * factor;
+        const deltaMousePx = Vector.sub(mousePx, Vector.mult(mousePx, factor))
 
-        this.originX += deltaMousePxX;
-        this.originY += deltaMousePxY;
+        this.origin.add(deltaMousePx);
       } else {
-        const oldXValue = mousePxX / prevPpm / (this.scaleX - deltaScaleX);
-        const newXValue = mousePxX / this.ppm / this.scaleX;
-        const deltaXPx = (newXValue - oldXValue) * this.ppm * this.scaleX;
-        this.originX += deltaXPx;
-
-        const oldYValue = mousePxY / prevPpm / (this.scaleY - deltaScaleY);
-        const newYValue = mousePxY / this.ppm / this.scaleY;
-        const deltaYPx = (newYValue - oldYValue) * this.ppm * this.scaleY;
-        this.originY += deltaYPx;
+        const oldValue = Vector.div(Vector.div(mousePx, prevPpm), Vector.sub(this.scale, deltaScale));
+        const newValue = Vector.div(Vector.div(mousePx, this.ppm), this.scale);
+        const deltaPx = Vector.mult(Vector.mult(Vector.sub(newValue, oldValue), this.ppm), this.scale);
+        this.origin.add(deltaPx);
       } 
     }
   }
@@ -196,22 +175,18 @@ class Grid {
       order = 5 * Math.pow(10, (this.scaleStep - 2) / 3);
     }
 
-    const deltaScaleX = order - this.scaleX;
-    const deltaScaleY = order - this.scaleY;
+    const deltaScale = Vector.sub(new Vector(order, order), this.scale);
 
-    this.scaleX = order;
-    this.scaleY = order;
+    this.scale.setXY(order, order);
 
-    this.applyZoom(deltaScaleX, deltaScaleY, withMouse);
+    this.applyZoom(deltaScale, withMouse);
   }
 
   resetZoom(){
     this.zoomStep = 5;
     this.scaleStep = 0;
-    this.scaleX = 1;
-    this.scaleY = 1;
-    this.originX = 0;
-    this.originY = 0;
+    this.scale.setXY(1, 1);
+    this.origin.setXY(0, 0);
     //this.ppm = 62.5; // px per meter
   }
 
@@ -225,50 +200,34 @@ class Grid {
   }
   renderPoints() {
     for (let i = 0; i < this.points.length; i++) {
-      this.points[i].render(this.originX, this.originY, this.gridWidth, this.gridHeight, this.ppm, this.scaleX, this.scaleY);
+      this.points[i].render(this.origin, this.gridDim, this.ppm, this.scale);
     }
   }
 
   resize(width, height) {
-    this.gridWidth = width - this.offsetX;
-    this.gridHeight = height - this.offsetY;
+    this.gridDim.setXY(width, height).sub(this.offset);
   }
 
-  updateMouse(x, y, active, dt) {
-    this.mouseX = x;
-    this.mouseY = y;
-
-    let velocityX = 0;
-    let velocityY = 0;
+  updateMouse(pos, active, dt) {
+    this.mouse = Vector.add(pos, new Vector(-this.offset.x, this.gridDim.y));
 
     if(active){
-      if(this.lastDragX !== null){
-        const deltaX = this.mouseX - this.lastDragX;
-        const deltaY = this.mouseY - this.lastDragY;
-        this.originX += deltaX;
-        this.originY -= deltaY;
-
-        velocityX = deltaX / dt; // px/s
-        velocityY = -deltaY / dt; // px/s
-
-        this.velocityX = velocityX;
-        this.velocityY = velocityY;
+      if(this.lastDrag !== null){
+        const delta = Vector.sub(this.mouse, this.lastDrag);
+        this.origin.add(delta);
+        this.velocity = delta.div(dt);
       }
-      this.lastDragX = this.mouseX;
-      this.lastDragY = this.mouseY; 
+      this.lastDrag = this.mouse.copy();
     } else {
-      this.lastDragX = null;
-      this.lastDragY = null; 
+      this.lastDrag = null;
     }
   }
 
   updateOrigin(isMouseDown) {
     const velocityReduceConstant = 200;
-    this.velocityX -= this.velocityX * this.friction;
-    this.velocityY -= this.velocityY * this.friction;
+    this.velocity.sub(Vector.mult(this.velocity, this.friction));
     if(!isMouseDown){
-      this.originX += this.velocityX / velocityReduceConstant;
-      this.originY += this.velocityY / velocityReduceConstant;
+      this.origin.add(Vector.div(this.velocity, velocityReduceConstant))
     }
   }
 
@@ -333,103 +292,103 @@ class Grid {
     ctx.textAlign = 'left';
     ctx.fillStyle = this.textColor;
 
-    ctx.translate(this.offsetX, this.gridHeight);
+    ctx.translate(this.offset.x, this.gridDim.y);
 
     const spacing = this.ppm;
 
     // Positive horizontal grid lines
-    let y = this.originY;
-    if(y > 0 && y < this.gridHeight){
+    let y = this.origin.y;
+    if(y > 0 && y < this.gridDim.y){
       ctx.fillText(0, -this.axisTextOffset, -y + 5);
-      this.renderLine([0, -y], [this.gridWidth, -y], this.color3, 1);
+      this.renderLine([0, -y], [this.gridDim.x, -y], this.color3, 1);
     }
 
-    let i = this.originY < 0 ? 
-    Math.floor(-this.originY / (spacing / 10)) : 1;
+    let i = this.origin.y < 0 ? 
+    Math.floor(-this.origin.y / (spacing / 10)) : 1;
 
-    while(y < this.gridHeight) {
-      y = this.originY + i * spacing / 10;
+    while(y < this.gridDim.y) {
+      y = this.origin.y + i * spacing / 10;
       if(y < 0) {
         i++;
         continue
       }
       if(i % 10 === 0){
-        this.renderLine([0, -y], [this.gridWidth, -y], this.color1, 1);
-        const axisNumber = (y - this.originY) / spacing / this.scaleY;
+        this.renderLine([0, -y], [this.gridDim.x, -y], this.color1, 1);
+        const axisNumber = (y - this.origin.y) / spacing / this.scale.y;
         this.formatAxisNumber(axisNumber, -this.axisTextOffset, -y, true);
       } else {
-        this.renderLine([0, -y], [this.gridWidth, -y], this.color2, 1);
+        this.renderLine([0, -y], [this.gridDim.x, -y], this.color2, 1);
       }
       i++;
     }
 
     // Negative horizontal grid lines
-    i = this.originY > this.gridHeight ? 
-    Math.floor((this.originY - this.gridHeight) / (spacing / 10)) : 1;
+    i = this.origin.y > this.gridDim.y ? 
+    Math.floor((this.origin.y - this.gridDim.y) / (spacing / 10)) : 1;
 
-    y = this.originY - i * spacing / 10;
+    y = this.origin.y - i * spacing / 10;
     while(y > 0) {
       if(i % 10 === 0){
-        this.renderLine([0, -y], [this.gridWidth, -y], this.color1, 1);
-        const axisNumber = (y - this.originY) / spacing / this.scaleY;
+        this.renderLine([0, -y], [this.gridDim.x, -y], this.color1, 1);
+        const axisNumber = (y - this.origin.y) / spacing / this.scale.y;
         this.formatAxisNumber(axisNumber, -this.axisTextOffset, -y, true);
       } else {
-        this.renderLine([0, -y], [this.gridWidth, -y], this.color2, 1);
+        this.renderLine([0, -y], [this.gridDim.x, -y], this.color2, 1);
       }
       i++;
-      y = this.originY - i * spacing / 10;
+      y = this.origin.y - i * spacing / 10;
     } 
 
     ctx.textAlign = 'center';
 
     // Positive vertical  grid lines
-    let x = this.originX;
-    if(x > 0 && x < this.gridWidth){
+    let x = this.origin.x;
+    if(x > 0 && x < this.gridDim.x){
       ctx.fillText(0, x, this.axisTextOffset);
-      this.renderLine([x, 0], [x, -this.gridHeight], this.color3, 1);
+      this.renderLine([x, 0], [x, -this.gridDim.y], this.color3, 1);
     }
 
-    i = this.originX < 0 ? 
-    Math.floor(-this.originX / (spacing / 10)) : 1;
+    i = this.origin.x < 0 ? 
+    Math.floor(-this.origin.x / (spacing / 10)) : 1;
 
-    while(x < this.gridWidth) {
-      x = this.originX + i * spacing / 10;
+    while(x < this.gridDim.x) {
+      x = this.origin.x + i * spacing / 10;
       
       if(x < 0) {
         i++;
         continue;
       }
       if(i % 10 === 0){
-        this.renderLine([x, 0], [x, -this.gridHeight], this.color1, 1);
-        const axisNumber = (x - this.originX) / spacing / this.scaleX;
+        this.renderLine([x, 0], [x, -this.gridDim.y], this.color1, 1);
+        const axisNumber = (x - this.origin.x) / spacing / this.scale.x;
         this.formatAxisNumber(axisNumber, x, this.axisTextOffset, false);
       } else {
-        this.renderLine([x, 0], [x, -this.gridHeight], this.color2, 1);
+        this.renderLine([x, 0], [x, -this.gridDim.y], this.color2, 1);
       }
       i++;
     }
 
     // Negative vertical  grid lines
-    i = this.originX > this.gridWidth ? 
-    Math.floor(-(this.gridWidth - this.originX) / (spacing / 10)) : 1;
+    i = this.origin.x > this.gridDim.x ? 
+    Math.floor(-(this.gridDim.x - this.origin.x) / (spacing / 10)) : 1;
 
-    x = this.originX - i * spacing / 10;
+    x = this.origin.x - i * spacing / 10;
     while(x > 0) {
       if(i % 10 === 0){
-        this.renderLine([x, 0], [x, -this.gridHeight], this.color1, 1);
-        const axisNumber = (x - this.originX) / spacing / this.scaleX;
+        this.renderLine([x, 0], [x, -this.gridDim.y], this.color1, 1);
+        const axisNumber = (x - this.origin.x) / spacing / this.scale.x;
         this.formatAxisNumber(axisNumber, x, this.axisTextOffset, false);
       } else {
-        this.renderLine([x, 0], [x, -this.gridHeight], this.color2, 1);
+        this.renderLine([x, 0], [x, -this.gridDim.y], this.color2, 1);
       }
       
       i++;
-      x = this.originX - i * spacing / 10;
+      x = this.origin.x - i * spacing / 10;
     }
 
     this.renderPoints();
 
-    ctx.translate(-this.offsetX, -this.gridHeight);
+    ctx.translate(-this.offset.x, -this.gridDim.y);
   }
 }
 
@@ -441,7 +400,7 @@ class Point {
 
     this.gravity = new Vector(0, -9.81);
 
-    this.path = [new Vector(x, y)];
+    this.path = [this.pos.copy()];
     this.pathColor = '#e62a4f';
     
     this.radius = 10;
@@ -450,43 +409,36 @@ class Point {
   }
   
   update(dt) {
-    const deltaVel = new Vector(this.gravity.x * dt, this.gravity.y * dt);
-    this.vel.add(deltaVel);
-    const deltaPos = new Vector(this.vel.x * dt, this.vel.y * dt);
-    this.pos.add(deltaPos);
-
-    this.path.push(new Vector(this.pos.x, this.pos.y));
+    this.vel.add(Vector.mult(this.gravity, dt));
+    this.pos.add(Vector.mult(this.vel, dt));
+    this.path.push(this.pos.copy());
   }
 
-  getPrevPointOnGrid(prevPxPosX, prevPxPosY, pxPosX, pxPosY, gridWidth, gridHeight){
+  getPrevPointOnGrid(prevPxPos, pxPos, gridDim){
 
-    const ricoToPrevious = (pxPosY - prevPxPosY) / (pxPosX - prevPxPosX);
+    const rico = Vector.rico(prevPxPos, pxPos);
 
-    if(pxPosX < 0){
-      //pxPosY = pxPosY + pxPosX * -ricoToNext;
-      pxPosY = pxPosY + pxPosX * -ricoToPrevious;
-      pxPosX = 0;
+    if(pxPos.x < 0){
+      pxPos.y += pxPos.x * -rico;
+      pxPos.x = 0;
     }
 
-    if(pxPosX > gridWidth){
-      pxPosY = prevPxPosY + (prevPxPosX - gridWidth) * -ricoToPrevious;
-      pxPosX = gridWidth;
+    if(pxPos.x > gridDim.x){
+      pxPos.y = prevPxPos.y + (prevPxPos.x - gridDim.x) * -rico;
+      pxPos.x = gridDim.x;
     }
 
-    if(pxPosY > 0){
-      pxPosX = prevPxPosX - (prevPxPosY) / ricoToPrevious;
-      pxPosY = 0;
+    if(pxPos.y < 0){
+      pxPos.x = prevPxPos.x - prevPxPos.y / rico;
+      pxPos.y = 0;
     }
 
-    if(pxPosY < -gridHeight){
-      pxPosX = prevPxPosX - (prevPxPosY + gridHeight) / ricoToPrevious;
-      pxPosY = -gridHeight;
+    if(pxPos.y > gridDim.y){
+      pxPos.x = prevPxPos.x + (gridDim.y - prevPxPos.y) / rico;
+      pxPos.y = gridDim.y;
     }
 
-    return {
-      x: pxPosX,
-      y: pxPosY
-    }
+    return pxPos;
   }
 
   isPointOnGrid(x, y, width, height){
@@ -497,22 +449,33 @@ class Point {
     return false;
   }
 
+  isPointOnGrid2(pos, dim){
+    if(pos.x >= 0 && pos.x < dim.x &&
+      pos.y >= 0 && pos.y < dim.y){
+      return true;
+    }
+    return false;
+  }
+
   mToPx(origin, pos, ppm, scale){
     return origin + pos * ppm * scale;
   }
 
-  render(originX, originY, gridWidth, gridHeight, ppm, scaleX, scaleY) {
+  mToPx2(origin, pos, ppm, scale){
+    return Vector.add(origin, Vector.mult(Vector.mult(pos, ppm), scale));
+  }
+
+  render(origin, gridDim, ppm, scale) {
 
     // Add circle to grid
 
     // Convert metric position to pixel position (meter to pixel)
-    let pxPosX = this.mToPx(originX, this.pos.x, ppm, scaleX);
-    let pxPosY = this.mToPx(-originY, -this.pos.y, ppm, scaleY);
+    const pxPosCircle = this.mToPx2(origin, this.pos, ppm, scale);
 
-    if(this.isPointOnGrid(pxPosX, pxPosY, gridWidth, gridHeight)){
+    if(this.isPointOnGrid2(pxPosCircle, gridDim)){
       ctx.beginPath();
       ctx.fillStyle = this.color;
-      ctx.arc(pxPosX, pxPosY, this.radius, 0, Math.PI * 2);
+      ctx.arc(pxPosCircle.x, -pxPosCircle.y, this.radius, 0, Math.PI * 2);
       ctx.fill();
       ctx.closePath();
     }
@@ -526,66 +489,61 @@ class Point {
     for(let i = 0; i < this.path.length; i++){
       const currPos = this.path[i];
       const prevPos = this.path[i - 1];
-      const nextPos = this.path[i + 1];
 
-      pxPosX = this.mToPx(originX, currPos.x, ppm, scaleX);
-      pxPosY = this.mToPx(-originY, -currPos.y, ppm, scaleY);
+      const pxPos = this.mToPx2(origin, currPos, ppm, scale);
+      const prevPxPos = prevPos ? this.mToPx2(origin, prevPos, ppm, scale) : null;
 
-      const prevPxPosX = prevPos ? this.mToPx(originX, prevPos.x, ppm, scaleX) : null;
-      const prevPxPosY = prevPos ? this.mToPx(-originY, -prevPos.y, ppm, scaleY) : null;
-      const nextPxPosX = nextPos ? this.mToPx(originX, nextPos.x, ppm, scaleX) : null;
-      const nextPxPosY = nextPos ? this.mToPx(-originY, -nextPos.y, ppm, scaleY) : null;
+      const rico = Vector.rico(prevPxPos, pxPos);
 
-      const ricoToNext = (nextPxPosY - pxPosY) / (nextPxPosX - pxPosX);
-      const ricoToPrevious = (pxPosY - prevPxPosY) / (pxPosX - prevPxPosX);
-
-      if(this.isPointOnGrid(pxPosX, pxPosY, gridWidth, gridHeight)){
+      if(this.isPointOnGrid2(pxPos, gridDim)){
         currPos.isOnGrid = true;
         if(prevPos){
           if(!prevPos.isOnGrid){
-            const tempPxPos = this.getPrevPointOnGrid(pxPosX, pxPosY, prevPxPosX, prevPxPosY, gridWidth, gridHeight);
-            ctx.moveTo(tempPxPos.x, tempPxPos.y);
+            const tempPxPos = this.getPrevPointOnGrid(pxPos, prevPxPos.copy(), gridDim);
+            ctx.moveTo(tempPxPos.x, -tempPxPos.y);
           }
-          ctx.lineTo(pxPosX, pxPosY);
+          ctx.lineTo(pxPos.x, -pxPos.y);
         } else {
-          ctx.moveTo(pxPosX, pxPosY);
+          ctx.moveTo(pxPos.x, -pxPos.y);
         }
       } else {
         currPos.isOnGrid = false;
 
-        if(prevPos && !prevPos.isOnGrid){
-          const tempPxPos = this.getPrevPointOnGrid(pxPosX, pxPosY, prevPxPosX, prevPxPosY, gridWidth, gridHeight);
-          ctx.moveTo(tempPxPos.x, tempPxPos.y);
-        }
-
-        if(pxPosX < 0){
-          if(prevPxPosX < 0) continue;
-          pxPosY = pxPosY + pxPosX * -ricoToPrevious;
-          pxPosX = 0;
-        }
-
-        if(pxPosX > gridWidth){
-          if(prevPxPosX > gridWidth) continue;
-          pxPosY = prevPxPosY + (prevPxPosX - gridWidth) * -ricoToPrevious;
-          pxPosX = gridWidth;
-        }
-
-        if(pxPosY > 0){
-          if(prevPxPosY > 0) continue;
-          pxPosX = prevPxPosX - prevPxPosY / ricoToPrevious;
-          pxPosY = 0;
-        }
-
-        if(pxPosY < -gridHeight){
-          if(prevPxPosY < -gridHeight) continue;
-            pxPosX = prevPxPosX - (prevPxPosY + gridHeight) / ricoToPrevious;
-            pxPosY = -gridHeight;
+        if(prevPos){
+          if(prevPos && !prevPos.isOnGrid){
+            const tempPxPos = this.getPrevPointOnGrid(pxPos, prevPxPos.copy(), gridDim);
+            ctx.moveTo(tempPxPos.x, -tempPxPos.y);
+          }
+  
+          if(pxPos.x < 0){
+            if(prevPxPos.x < 0) continue;
+            pxPos.y = pxPos.y + pxPos.x * -rico;
+            pxPos.x = 0;
+          }
+  
+          if(pxPos.x > gridDim.x){
+            if(prevPxPos.x > gridDim.x) continue;
+            pxPos.y = prevPxPos.y + (prevPxPos.x - gridDim.x) * -rico;
+            pxPos.x = gridDim.x;
+          }
+  
+          if(pxPos.y < 0){
+            if(prevPxPos.y < 0) continue;
+            pxPos.x = prevPxPos.x - prevPxPos.y / rico;
+            pxPos.y = 0;
+          }
+  
+          if(pxPos.y > gridDim.y){
+            if(prevPxPos.y > gridDim.y) continue;
+            pxPos.x = prevPxPos.x + (gridDim.y - prevPxPos.y) / rico;
+            pxPos.y = gridDim.y;
+          }
         }
 
         if(prevPos){
-          ctx.lineTo(pxPosX, pxPosY);
+          ctx.lineTo(pxPos.x, -pxPos.y);
         } else {
-          ctx.moveTo(pxPosX, pxPosY);
+          ctx.moveTo(pxPos.x, -pxPos.y);
         }
       }
     }
@@ -606,7 +564,7 @@ const maxtime = 2;
 const realtime = true;
 let lastTime = new Date().getTime();
 
-let dt = 0.1;
+let dt = 0.5;
 let rdt = dt;
 
 function animate() {
@@ -622,7 +580,7 @@ function animate() {
 
   const mouse = canv.getMouse();
   grid.resize(canvas.width, canvas.height);
-  grid.updateMouse(mouse.x, mouse.y, mouse.isMouseDown, rdt);
+  grid.updateMouse(mouse.pos, mouse.isMouseDown, rdt);
   grid.updateOrigin(mouse.isMouseDown);
 
   if(time < maxtime){
