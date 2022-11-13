@@ -5,18 +5,26 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Document</title>
-  <link rel="stylesheet" href="style.css">
-  <script src="Vector.js"></script>
-  <script type="text/javascript" src="metric.js"></script>
+  <link href="./assets/fontawesome/css/fontawesome.css" rel="stylesheet">
+  <link href="./assets/fontawesome/css/brands.css" rel="stylesheet">
+  <link href="./assets/fontawesome/css/solid.css" rel="stylesheet">
+  <link rel="stylesheet" href="./assets/css/style.css">
+  <script src="./assets/js/Vector.js"></script>
+  <script type="text/javascript" src="./assets/js/metric.js"></script>
 </head>
 <body>
   <div id="wrapper">
     <div id="canvas-ui">
       <canvas id="canvas"></canvas>
       <div id="buttons-zoom">
-        <button class="button" id="button-zoomin">-</button>
-        <button class="button" id="button-zoomout">+</button>
-        <button class="button" id="button-home">H</button>
+        <button class="button" id="button-zoomin"><i class="fa-regular fa-magnifying-glass-minus"></i></button>
+        <button class="button" id="button-zoomout"><i class="fa-regular fa-magnifying-glass-plus"></i></button>
+        <button class="button" id="button-home"><i class="fa-solid fa-house"></i></button>
+        <button class="button" id="button-pause">
+          <i class="fa-solid fa-play"></i>
+          <i class="fa-solid fa-pause"></i>
+        </button>
+        <!-- <button class="button" id="button-replay"><i class="fa-regular fa-rotate-right"></i></button> -->
       </div>
     </div>
     <div id="canvas-graph"></div>
@@ -31,7 +39,7 @@
     const pos = new Vector(1, 1);
     const vel = new Vector(10, 10);
 
-    for(let i = 0; i < 360; i+=5){
+    for(let i = 0; i < 360; i+=30){
       const vel2 = vel.copy();
       vel2.rotate(Math.PI / 180 * i);
       const point2 = new Point(pos.copy(), vel2);

@@ -10,7 +10,7 @@ class Graph {
     this.scale = new Vector(1, 1);
     this.ppm = 62.5; // px per meter
     this.spacing1 = 100;
-    this.colorList = ['#e6194B', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#42d4f4', '#f032e6', '#fabed4', '#469990', '#dcbeff', '#9A6324', '#800000', '#aaffc3', '#000075', '#a9a9a9', '#ffffff', '#000000'];
+    this.colorList = ['#e6194B', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#42d4f4', '#f032e6', '#fabed4', '#469990', '#dcbeff', '#9A6324', '#800000', '#aaffc3', '#000075', '#a9a9a9'];
     this.color1 = "#999999";
     this.color2 = "#dddddd";
     this.color3 = "#000000";
@@ -36,8 +36,10 @@ class Graph {
     this.maxTime = 2;
     this.realTime = true;
     this.lastTime = new Date().getTime();
-    this.dt = 0.5;
+    this.dt = 2;
     this.rdt = this.dt;
+    this.paused = false;
+    this.pausedManual = false;
 
     this.build();
     this.setup();
@@ -71,13 +73,16 @@ class Graph {
   animate() {
     this.clearCanvas();
     this.updateTime();
+    this.updateMetrics();
   
     this.resize();
     this.updateMouse();
     this.updateOrigin();
-  
-    this.updateState();
-    
+
+    if(!this.paused){
+      this.updateState();
+    }
+
     this.render();
   
     requestAnimationFrame(this.animate.bind(this));
@@ -92,9 +97,24 @@ class Graph {
     this.rdt = (now - this.lastTime) / 1000;
     this.lastTime = now;
 
+    this.paused = this.rdt > 0.25 || this.pausedManual;
+
     if(this.realTime){
       this.dt = this.rdt;
     }
+  }
+
+  updateMetrics(){
+    this.ctx.font = '12px sans-serif';
+    this.ctx.textAlign = 'left';
+    this.ctx.fillStyle = "#000000";
+
+    const fps = Math.round(1 / this.rdt);
+    const time = Math.round(this.time * 10) / 10;
+    //const text = `${fps} | ${time}`
+
+    this.ctx.fillText(time + " / " + this.maxTime, 10, this.canvas.height - 12 - 10);
+    this.ctx.fillText(fps, 10, this.canvas.height - 10);
   }
 
   resize() {
@@ -190,6 +210,14 @@ class Graph {
     if(id === "button-zoomout"){
       this.zoomGrid(1);
     }
+
+    if(id === "button-pause"){
+      this.pauseManual()
+    }
+
+    if(id === "button-replay"){
+      this.replay()
+    }
   }
 
   applyZoom(deltaScale, withMouse){
@@ -266,6 +294,27 @@ class Graph {
     this.scale.setXY(1, 1);
     this.origin.setXY(0, 0);
     //this.ppm = 62.5; // px per meter
+  }
+
+  pauseManual(){
+    if(this.pausedManual){
+      this.uiElement.classList.remove("paused");
+      this.pausedManual = false;
+      this.paused = false;
+    } else {
+      this.uiElement.classList.add("paused");
+      this.pausedManual = true;
+      this.paused = true;
+    }
+  }
+
+  replay(){
+    //this.points = [];
+    this.time = 0;
+
+    // point.reset();
+
+    console.log(this.points);
   }
 
   addPoint(point, color) {
@@ -355,7 +404,7 @@ class Graph {
     let y = this.origin.y;
     if(y > 0 && y < this.gridDim.y){
       this.ctx.fillText(0, -this.axisTextOffset, -y + 5);
-      this.renderLine([0, -y], [this.gridDim.x, -y], this.color3, 1);
+      this.renderLine([0, -y], [this.gridDim.x, -y], this.color3, 2);
     }
 
     let i = this.origin.y < 0 ? 
@@ -400,7 +449,7 @@ class Graph {
     let x = this.origin.x;
     if(x > 0 && x < this.gridDim.x){
       this.ctx.fillText(0, x, this.axisTextOffset);
-      this.renderLine([x, 0], [x, -this.gridDim.y], this.color3, 1);
+      this.renderLine([x, 0], [x, -this.gridDim.y], this.color3, 2);
     }
 
     i = this.origin.x < 0 ? 

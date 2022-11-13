@@ -45,4 +45,18 @@ body {
   justify-content: center;
   align-items: center;
   margin-bottom: 5px;
+  font-size: 16px;
+}
+
+#buttons-zoom .button i {
+  pointer-events: none;
+}
+
+
+#canvas-ui:not(.paused) #buttons-zoom .button#button-pause i.fa-play {
+  display: none;
+}
+
+#canvas-ui.paused #buttons-zoom .button#button-pause i.fa-pause {
+  display: none;
 }
