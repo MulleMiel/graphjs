@@ -309,12 +309,11 @@ class Graph {
   }
 
   replay(){
-    //this.points = [];
     this.time = 0;
 
-    // point.reset();
-
-    console.log(this.points);
+    for(const point of this.points) {
+      point.reset();
+    }
   }
 
   addPoint(point, color) {
@@ -512,12 +511,21 @@ class Point {
       this.pathColor = color;
     }
 
+    this.posStart = this.pos.copy();
+    this.velStart = this.vel.copy();
+
     this.gravity = new Vector(-1, -1);
 
-    this.path = [this.pos.copy()];
+    this.path = [this.posStart.copy()];
     
     this.radius = 5;
     this.mass = 1;
+  }
+
+  reset(){
+    this.pos = this.posStart.copy();
+    this.vel = this.velStart.copy();
+    this.path = [this.posStart.copy()];
   }
 
   setColor(color){
