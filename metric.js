@@ -10,6 +10,7 @@ class Graph {
     this.scale = new Vector(1, 1);
     this.ppm = 62.5; // px per meter
     this.spacing1 = 100;
+    this.colorList = ['#e6194B', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#42d4f4', '#f032e6', '#fabed4', '#469990', '#dcbeff', '#9A6324', '#800000', '#aaffc3', '#000075', '#a9a9a9', '#ffffff', '#000000'];
     this.color1 = "#999999";
     this.color2 = "#dddddd";
     this.color3 = "#000000";
@@ -35,7 +36,7 @@ class Graph {
     this.maxTime = 2;
     this.realTime = true;
     this.lastTime = new Date().getTime();
-    this.dt = 0.2;
+    this.dt = 0.5;
     this.rdt = this.dt;
 
     this.build();
@@ -267,8 +268,14 @@ class Graph {
     //this.ppm = 62.5; // px per meter
   }
 
-  addPoint(x, y, vx, vy) {
-    this.points.push(new Point(x, y, vx, vy));
+  addPoint(point, color) {
+    if(!point.color) {
+      if(!color){
+        color = this.colorList[this.points.length];
+      }
+      point.setColor(color);
+    }
+    this.points.push(point);
   }
 
   updatePoints() {
@@ -442,18 +449,31 @@ class Graph {
 
 class Point {
   
-  constructor(x, y, vx, vy) {
-    this.pos = new Vector(x, y);
-    this.vel = new Vector(vx, vy);
+  constructor(x, y, vx, vy, color) {
 
-    this.gravity = new Vector(0, -9.81);
+    if(arguments.length <= 3) {
+      this.pos = x;
+      this.vel = y;
+      this.color = vx;
+      this.pathColor = vx;
+    } else {
+      this.pos = new Vector(x, y);
+      this.vel = new Vector(vx, vy);
+      this.color = color;
+      this.pathColor = color;
+    }
+
+    this.gravity = new Vector(-1, -1);
 
     this.path = [this.pos.copy()];
-    this.pathColor = '#e62a4f';
     
-    this.radius = 10;
-    this.color = '#e62a4f';
+    this.radius = 5;
     this.mass = 1;
+  }
+
+  setColor(color){
+    this.color = color;
+    this.pathColor = color;
   }
   
   update(dt) {
