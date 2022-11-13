@@ -1,25 +1,137 @@
-let canvas = document.getElementById("canvas");
-let ctx = canvas.getContext("2d");
 
-function getMousePos(e) {
-  const rect = canvas.getBoundingClientRect();
-  return {
-      x: (e.clientX - rect.left) / (rect.right - rect.left) * canvas.width,
-      y: (e.clientY - rect.top) / (rect.bottom - rect.top) * canvas.height
-  };
-}
+class Graph {
+  constructor(wrapper){
+    this.offset = new Vector(100, 100);
+    this.gridDim = new Vector(300, 300);
+    this.origin = new Vector(200, 200);
+    this.zoomSteps = 10;
+    this.zoomStep = 5;
+    this.scaleStep = 0;
+    this.scale = new Vector(1, 1);
+    this.ppm = 62.5; // px per meter
+    this.spacing1 = 100;
+    this.color1 = "#999999";
+    this.color2 = "#dddddd";
+    this.color3 = "#000000";
+    this.textColor = "#000000";
+    this.axisTextOffset = 20;
 
-class Canvas {
-  constructor(){
-    this.mouse = new Vector();
+    this.mouseRaw = new Vector();
+    this.mouse = null;
+    this.lastDrag = null;
     this.isMouseDown = false;
 
+    this.velocity = new Vector();
+    this.friction = 0.05;
+
+    this.points = [];
+
+    this.wrapElement = wrapper;
+    this.uiElement = null;
+    this.canvas = null;
+    this.ctx = null;
+
+    this.time = 0;
+    this.maxTime = 2;
+    this.realTime = true;
+    this.lastTime = new Date().getTime();
+    this.dt = 0.2;
+    this.rdt = this.dt;
+
+    this.build();
+    this.setup();
+  }
+
+  build(){
+    this.canvas = document.getElementById("canvas");
+    this.ctx = this.canvas.getContext("2d");
+    this.uiElement = document.getElementById("canvas-ui");
+  }
+
+  setup(){
+    this.canvas.addEventListener('wheel', (e) => {
+      const dir = e.deltaY < 0 ? 1 : -1;
+      this.zoomGrid(dir, true);
+    }, { passive: true });
+    this.uiElement.addEventListener('click', (e) => { this.onClick(e) }, { passive: true });
+
     window.addEventListener('resize', this.resizeCanvas, false);
+    this.canvas.addEventListener('mousemove', (e) => { this.mouseMove(e); }, false);
+    this.canvas.addEventListener('mousedown', () => { this.mouseDown(); }, false);
+    this.canvas.addEventListener('mouseup', () => { this.mouseUp(); }, false);
+  }
+
+  start(){
     this.resizeCanvas();
+    this.applyZoom();
+    this.animate();
+  }
+
+  animate() {
+    this.clearCanvas();
+    this.updateTime();
+  
+    this.resize();
+    this.updateMouse();
+    this.updateOrigin();
+  
+    this.updateState();
     
-    canvas.addEventListener('mousemove', (e) => { this.mouseMove(e); }, false);
-    canvas.addEventListener('mousedown', () => { this.mouseDown(); }, false);
-    canvas.addEventListener('mouseup', () => { this.mouseUp(); }, false);
+    this.render();
+  
+    requestAnimationFrame(this.animate.bind(this));
+  }
+
+  clearCanvas(){
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+  }
+
+  updateTime(){
+    const now = new Date().getTime()
+    this.rdt = (now - this.lastTime) / 1000;
+    this.lastTime = now;
+
+    if(this.realTime){
+      this.dt = this.rdt;
+    }
+  }
+
+  resize() {
+    this.gridDim.setXY(this.canvas.width, this.canvas.height).sub(this.offset);
+  }
+
+  updateMouse() {
+    this.mouse = Vector.add(this.mouseRaw, new Vector(-this.offset.x, this.gridDim.y));
+
+    if(this.isMouseDown){
+      if(this.lastDrag !== null){
+        const delta = Vector.sub(this.mouse, this.lastDrag);
+        this.origin.add(delta);
+        this.velocity = delta.div(this.rdt);
+      }
+      this.lastDrag = this.mouse.copy();
+    } else {
+      this.lastDrag = null;
+    }
+  }
+
+  updateOrigin() {
+    const velocityReduceConstant = 200;
+    this.velocity.sub(Vector.mult(this.velocity, this.friction));
+    if(!this.isMouseDown){
+      this.origin.add(Vector.div(this.velocity, velocityReduceConstant))
+    }
+  }
+
+  updateState(){
+    if(this.time < this.maxTime){
+      this.update();
+      this.time += this.dt;
+    }
+  }
+
+  update() {
+    this.updatePoints();
   }
 
   resizeCanvas() {
@@ -42,8 +154,8 @@ class Canvas {
   }
 
   mouseMove(e){
-    const pos = getMousePos(e);
-    this.mouse.setXY(pos.x, -pos.y)
+    const pos = this.getMousePos(e);
+    this.mouseRaw.setXY(pos.x, -pos.y);
   }
 
   mouseDown(){
@@ -54,47 +166,12 @@ class Canvas {
     this.isMouseDown = false;
   }
 
-  getMouse(){
+  getMousePos(e) {
+    const rect = this.canvas.getBoundingClientRect();
     return {
-      pos: this.mouse,
-      isMouseDown: this.isMouseDown
-    }
-  }
-}
-
-class Grid {
-  constructor(){
-    this.offset = new Vector(100, 100);
-    this.gridDim = new Vector(300, 300);
-    this.origin = new Vector(200, 200);
-    this.zoomSteps = 10;
-    this.zoomStep = 5;
-    this.scaleStep = 0;
-    this.scale = new Vector(1, 1);
-    this.ppm = 62.5; // px per meter
-    this.spacing1 = 100;
-    this.color1 = "#999999";
-    this.color2 = "#dddddd";
-    this.color3 = "#000000";
-    this.textColor = "#000000";
-    this.axisTextOffset = 20;
-
-    this.mouse = null;
-    this.lastDrag = null;
-
-    this.velocity = new Vector();
-    this.friction = 0.05;
-
-    this.points = [];
-
-    this.uiElement = document.getElementById("canvas-ui");
-
-    canvas.addEventListener('wheel', (e) => {
-      const dir = e.deltaY < 0 ? 1 : -1;
-      this.zoomGrid(dir, true);
-    }, { passive: true });
-    this.uiElement.addEventListener('click', (e) => { this.onClick(e) }, { passive: true });
-    this.applyZoom();
+        x: (e.clientX - rect.left) / (rect.right - rect.left) * this.canvas.width,
+        y: (e.clientY - rect.top) / (rect.bottom - rect.top) * this.canvas.height
+    };
   }
 
   onClick(e){
@@ -193,56 +270,27 @@ class Grid {
   addPoint(x, y, vx, vy) {
     this.points.push(new Point(x, y, vx, vy));
   }
-  updatePoints(dt) {
+
+  updatePoints() {
     for (let i = 0; i < this.points.length; i++) {
-      this.points[i].update(dt);
+      this.points[i].update(this.dt);
     }
   }
+
   renderPoints() {
     for (let i = 0; i < this.points.length; i++) {
-      this.points[i].render(this.origin, this.gridDim, this.ppm, this.scale);
+      this.points[i].render(this.ctx, this.origin, this.gridDim, this.ppm, this.scale);
     }
-  }
-
-  resize(width, height) {
-    this.gridDim.setXY(width, height).sub(this.offset);
-  }
-
-  updateMouse(pos, active, dt) {
-    this.mouse = Vector.add(pos, new Vector(-this.offset.x, this.gridDim.y));
-
-    if(active){
-      if(this.lastDrag !== null){
-        const delta = Vector.sub(this.mouse, this.lastDrag);
-        this.origin.add(delta);
-        this.velocity = delta.div(dt);
-      }
-      this.lastDrag = this.mouse.copy();
-    } else {
-      this.lastDrag = null;
-    }
-  }
-
-  updateOrigin(isMouseDown) {
-    const velocityReduceConstant = 200;
-    this.velocity.sub(Vector.mult(this.velocity, this.friction));
-    if(!isMouseDown){
-      this.origin.add(Vector.div(this.velocity, velocityReduceConstant))
-    }
-  }
-
-  update(dt) {
-    this.updatePoints(dt);
   }
 
   renderLine(start, end, color, lineWidth){
-    ctx.beginPath();
-    ctx.moveTo(start[0], start[1]);
-    ctx.lineTo(end[0], end[1]);
-    ctx.strokeStyle = color;
-    ctx.lineWidth = lineWidth;
-    ctx.stroke();
-    ctx.closePath();
+    this.ctx.beginPath();
+    this.ctx.moveTo(start[0], start[1]);
+    this.ctx.lineTo(end[0], end[1]);
+    this.ctx.strokeStyle = color;
+    this.ctx.lineWidth = lineWidth;
+    this.ctx.stroke();
+    this.ctx.closePath();
   }
 
   formatAxisNumber(num, x, y, horizontal = true){
@@ -252,7 +300,7 @@ class Grid {
       formatNum = Math.round(num * 10000) / 10000;
     }
 
-    let text1 = ctx.measureText(formatNum);
+    let text1 = this.ctx.measureText(formatNum);
     let text2 = { width: 0 };
 
     // Scientific notation
@@ -269,37 +317,37 @@ class Grid {
 
       formatNum = `${coefficient} x 10`;
       
-      text1 = ctx.measureText(formatNum);
-      text2 = ctx.measureText(exponent);
+      text1 = this.ctx.measureText(formatNum);
+      text2 = this.ctx.measureText(exponent);
       
       if(horizontal){
-        ctx.fillText(exponent, x - text2.width, y - 6);
+        this.ctx.fillText(exponent, x - text2.width, y - 6);
       } else {
-        ctx.fillText(exponent, x + text1.width / 2, y - 1);
+        this.ctx.fillText(exponent, x + text1.width / 2, y - 1);
       }
     }
 
     if(horizontal){
-      ctx.fillText(formatNum, x - text1.width - text2.width, y + 5);
+      this.ctx.fillText(formatNum, x - text1.width - text2.width, y + 5);
     } else {
-      ctx.fillText(formatNum, x, y + 10);
+      this.ctx.fillText(formatNum, x, y + 10);
     }
   }
 
   render(){
 
-    ctx.font = '12px sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillStyle = this.textColor;
+    this.ctx.font = '12px sans-serif';
+    this.ctx.textAlign = 'left';
+    this.ctx.fillStyle = this.textColor;
 
-    ctx.translate(this.offset.x, this.gridDim.y);
+    this.ctx.translate(this.offset.x, this.gridDim.y);
 
     const spacing = this.ppm;
 
     // Positive horizontal grid lines
     let y = this.origin.y;
     if(y > 0 && y < this.gridDim.y){
-      ctx.fillText(0, -this.axisTextOffset, -y + 5);
+      this.ctx.fillText(0, -this.axisTextOffset, -y + 5);
       this.renderLine([0, -y], [this.gridDim.x, -y], this.color3, 1);
     }
 
@@ -339,12 +387,12 @@ class Grid {
       y = this.origin.y - i * spacing / 10;
     } 
 
-    ctx.textAlign = 'center';
+    this.ctx.textAlign = 'center';
 
     // Positive vertical  grid lines
     let x = this.origin.x;
     if(x > 0 && x < this.gridDim.x){
-      ctx.fillText(0, x, this.axisTextOffset);
+      this.ctx.fillText(0, x, this.axisTextOffset);
       this.renderLine([x, 0], [x, -this.gridDim.y], this.color3, 1);
     }
 
@@ -388,7 +436,7 @@ class Grid {
 
     this.renderPoints();
 
-    ctx.translate(-this.offset.x, -this.gridDim.y);
+    this.ctx.translate(-this.offset.x, -this.gridDim.y);
   }
 }
 
@@ -465,7 +513,7 @@ class Point {
     return Vector.add(origin, Vector.mult(Vector.mult(pos, ppm), scale));
   }
 
-  render(origin, gridDim, ppm, scale) {
+  render(ctx, origin, gridDim, ppm, scale) {
 
     // Add circle to grid
 
@@ -552,46 +600,3 @@ class Point {
     ctx.closePath();
   }
 }
-
-const canv = new Canvas();
-
-const grid = new Grid();
-grid.addPoint(1, 1, 3, 12);
-
-let time = 0;
-const maxtime = 2;
-
-const realtime = true;
-let lastTime = new Date().getTime();
-
-let dt = 0.5;
-let rdt = dt;
-
-function animate() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  const now = new Date().getTime()
-  rdt = (now - lastTime) / 1000;
-  lastTime = now;
-
-  if(realtime){
-    dt = rdt;
-  }
-
-  const mouse = canv.getMouse();
-  grid.resize(canvas.width, canvas.height);
-  grid.updateMouse(mouse.pos, mouse.isMouseDown, rdt);
-  grid.updateOrigin(mouse.isMouseDown);
-
-  if(time < maxtime){
-    grid.update(dt);
-
-    time += dt;
-  }
-
-  grid.render();
-
-  requestAnimationFrame(animate);
-}
-
-animate();

@@ -6,14 +6,17 @@ body {
   background-color: #cccccc;
   margin: 0;
   overflow-y: scroll;
+  font-family: sans-serif;
 }
+
 #wrapper {
-  padding: 60px;
+  padding: 60px 40px 60px 60px;
   position: relative;
 }
 
 #canvas-ui {
   position: relative;
+  padding-right: 40px;
 }
 
 #canvas {
@@ -23,9 +26,10 @@ body {
 
 #buttons-zoom {
   position: absolute;
-  bottom: 0;
+  top: 0;
   right: 0;
-  padding: 20px;
+  padding: 0 0 0 10px;
+  width: 40px;
 }
 
 #buttons-zoom .button {
@@ -35,9 +39,10 @@ body {
   border-radius: 3px;
   width: 30px;
   height: 30px;
-  font-weight: 700;
+  font-weight: 800;
   cursor: pointer;
   display: inline-flex;
   justify-content: center;
   align-items: center;
+  margin-bottom: 5px;
 }
