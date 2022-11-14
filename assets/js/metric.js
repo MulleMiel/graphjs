@@ -26,6 +26,7 @@ class Graph {
     this.friction = 0.05;
 
     this.points = [];
+    this.functions = [];
 
     this.wrapElement = wrapper;
     this.uiElement = null;
@@ -326,6 +327,16 @@ class Graph {
     this.points.push(point);
   }
 
+  addFunction(fnc, color) {
+    if(!fnc.color) {
+      if(!color){
+        color = this.colorList[this.functions.length];
+      }
+      fnc.setColor(color);
+    }
+    this.functions.push(fnc);
+  }
+
   updatePoints() {
     for (let i = 0; i < this.points.length; i++) {
       this.points[i].update(this.dt);
@@ -335,6 +346,12 @@ class Graph {
   renderPoints() {
     for (let i = 0; i < this.points.length; i++) {
       this.points[i].render(this.ctx, this.origin, this.gridDim, this.ppm, this.scale);
+    }
+  }
+
+  renderFunctions() {
+    for (let i = 0; i < this.functions.length; i++) {
+      this.functions[i].render(this.ctx, this.origin, this.gridDim, this.ppm, this.scale);
     }
   }
 
@@ -490,6 +507,7 @@ class Graph {
     }
 
     this.renderPoints();
+    this.renderFunctions();
 
     this.ctx.translate(-this.offset.x, -this.gridDim.y);
   }
@@ -671,6 +689,95 @@ class Point {
           ctx.moveTo(pxPos.x, -pxPos.y);
         }
       }
+    }
+
+    ctx.stroke();
+    ctx.closePath();
+  }
+}
+
+class Function {
+  constructor(color) {
+    this.color = color;
+  }
+
+  setColor(color){
+    this.color = color;
+  }
+
+  mToPx(origin, pos, ppm, scale){
+    return origin + pos * ppm * scale;
+  }
+
+  pxToM(origin, px, ppm, scale){
+    return (px - origin) / scale / ppm;
+  }
+
+  render(ctx, origin, gridDim, ppm, scale) {
+
+    // Add path of function to grid
+
+    ctx.beginPath();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = this.color;
+
+    let prevYPx = null;
+    const dx = 1;
+    for(let xPx = 0; xPx <= gridDim.x; xPx+=dx){
+      const x = this.pxToM(origin.x, xPx, ppm, scale.x);
+
+      const y = 1.5 * Math.round(x) + Math.sin(x); // function
+
+      const yPx = this.mToPx(origin.y, y, ppm, scale.y);
+
+      if(xPx === 0){
+        ctx.moveTo(xPx, -yPx);
+      } else if(yPx <= gridDim.y && yPx >= 0){
+        
+        if(prevYPx < 0 || prevYPx > gridDim.y){
+          const prevXPx = xPx - dx;
+          const rico = Vector.rico(new Vector(prevXPx, prevYPx), new Vector(xPx, yPx));
+
+          let newXPx = prevXPx;
+          let newYPx = prevYPx;
+
+          if(prevYPx < 0){
+            newXPx = prevXPx - prevYPx / rico;
+            newYPx = 0;
+          }
+
+          if(prevYPx > gridDim.y){
+            newXPx = prevXPx + (gridDim.y - prevYPx) / rico;
+            newYPx = gridDim.y;
+          }
+
+          ctx.moveTo(newXPx, -newYPx);
+        } else {
+          ctx.lineTo(xPx, -yPx);
+        }
+      } else {
+        if(prevYPx <= gridDim.y && prevYPx >= 0){
+          const prevXPx = xPx - dx;
+          const rico = Vector.rico(new Vector(prevXPx, prevYPx), new Vector(xPx, yPx));
+
+          let newXPx = xPx;
+          let newYPx = yPx;
+
+          if(yPx < 0){
+            newXPx = prevXPx - prevYPx / rico;
+            newYPx = 0;
+          }
+
+          if(yPx > gridDim.y){
+            newXPx = prevXPx + (gridDim.y - prevYPx) / rico;
+            newYPx = gridDim.y;
+          }
+
+          ctx.lineTo(newXPx, -newYPx);
+        }
+      }
+
+      prevYPx = yPx;
     }
 
     ctx.stroke();

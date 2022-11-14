@@ -42,16 +42,18 @@
     const grid = new Graph(wrapper);
 
     grid.maxTime = 30;
-
     const pos = new Vector(1, 1);
     const vel = new Vector(10, 10);
-
     for(let i = 0; i < 360; i+=30){
       const vel2 = vel.copy();
       vel2.rotate(Math.PI / 180 * i);
       const point2 = new Point(pos.copy(), vel2);
       grid.addPoint(point2);
     }
+
+    const fnc = new Function();
+    grid.addFunction(fnc);
+
 
     grid.start();
   </script>
