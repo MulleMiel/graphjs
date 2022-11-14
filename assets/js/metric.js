@@ -167,7 +167,7 @@ class Graph {
 
     canvas.width = parentWidth - parentPaddingLeft - parentPaddingRight;
 
-    if(canvas.width > windowHeight - offsetTop){
+    if(canvas.width > windowHeight - offsetTop - 60){
       canvas.height =  windowHeight - offsetTop - 60;
     } else {
       canvas.height = canvas.width;

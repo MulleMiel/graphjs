@@ -12,14 +12,22 @@ body {
 #wrapper {
   padding: 60px 40px 60px 60px;
   position: relative;
+  display: flex;
 }
 
 #canvas-ui {
   position: relative;
   padding-right: 40px;
+  /* flex-grow: 1; */
+  width: 100%;
+}
+
+#canvas-outer {
+  width: 100%;
 }
 
 #canvas {
+  position: absolute;
   display: block;
   background-color: white;
 }
@@ -59,4 +67,16 @@ body {
 
 #canvas-ui.paused #buttons-zoom .button#button-pause i.fa-pause {
   display: none;
+}
+
+#canvas-inputs {
+  width: 300px;
+  background-color: white;
+  margin-right: 15px;
+  padding: 20px 15px;
+  flex-shrink: 0;
+}
+
+#canvas-inputs input {
+  width: 100%;
 }
