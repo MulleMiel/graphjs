@@ -8,6 +8,11 @@
   <link href="./assets/fontawesome/css/fontawesome.css" rel="stylesheet">
   <link href="./assets/fontawesome/css/brands.css" rel="stylesheet">
   <link href="./assets/fontawesome/css/solid.css" rel="stylesheet">
+  <link rel="stylesheet" href="./assets/mathquill/mathquill.css"/>
+  <script src="./assets/jquery/jquery.min.js"></script>
+  <script src="./assets/mathquill/mathquill.min.js"></script>
+  <script>const MQ = MathQuill.getInterface(2);</script>
+  <script src="./assets/evaluatex/evaluatex.min.js"></script>
   <link rel="stylesheet" href="./assets/css/style.css">
   <script src="./assets/js/Vector.js"></script>
   <script type="text/javascript" src="./assets/js/metric.js"></script>
@@ -16,7 +21,16 @@
   <div id="wrapper">
     <div id="canvas-inputs">
       <div class="function">
-        <input type="text">
+        <div class="function-input"></div>
+        <div class="function-input"></div>
+        <div class="function-input"></div>
+        <div class="function-input"></div>
+        <div class="function-input"></div>
+        <div class="function-input"></div>
+        <div class="function-input"></div>
+        <div class="function-input"></div>
+        <div class="function-input"></div>
+        <div class="function-input"></div>
       </div>
     </div>
     <div id="canvas-ui">
@@ -37,25 +51,71 @@
     <div id="canvas-graph"></div>
   </div>
   <script>
-    const wrapper = document.getElementById('canvas-graph');
+  /*
+      Setup Graph
+  */
+  const wrapper = document.getElementById('canvas-graph');
+  const grid = new Graph(wrapper);
+  grid.maxTime = 30;
 
-    const grid = new Graph(wrapper);
+  /*
+      Add test Points
+  */
+  // const pos = new Vector(1, 1);
+  // const vel = new Vector(10, 10);
+  // for(let i = 0; i < 360; i+=30){
+  //   const vel2 = vel.copy();
+  //   vel2.rotate(Math.PI / 180 * i);
+  //   const point2 = new Point(pos.copy(), vel2);
+  //   grid.addPoint(point2);
+  // }
 
-    grid.maxTime = 30;
-    const pos = new Vector(1, 1);
-    const vel = new Vector(10, 10);
-    for(let i = 0; i < 360; i+=30){
-      const vel2 = vel.copy();
-      vel2.rotate(Math.PI / 180 * i);
-      const point2 = new Point(pos.copy(), vel2);
-      grid.addPoint(point2);
-    }
+  /*
+      Add test functions
+  */
 
-    const fnc = new Function();
-    grid.addFunction(fnc);
+  // const fncTest = new Function();
+  // grid.addFunction(0, fncTest);
+
+  /*
+      Initiate graph
+  */
+  grid.start();
 
 
-    grid.start();
+  /*
+      Setup function input field
+  */
+
+  const functionInputs = document.getElementsByClassName('function-input');
+  for(const fnInput of functionInputs) {
+    const mathField = MQ.MathField(fnInput, {
+      handlers: {
+        edit: function() {
+          const enteredFunction = mathField.latex(); // Get entered math in LaTeX format
+          try {
+            const fn = evaluatex(enteredFunction, constants = {}, options = { latex: true });
+            const fnc = new Function(fn);
+            grid.addFunction(mathField.id, fnc);
+          } catch(err) {
+            grid.removeFunction(mathField.id);
+          }
+          
+          
+          //const result = fn(variables = { x: 10 });
+          //console.log(enteredFunction);
+          //console.log(fn);
+          //console.log(result);
+
+          
+        }
+      }
+    });
+  }
   </script>
+
+<script>
+  
+</script>
 </body>
 </html>

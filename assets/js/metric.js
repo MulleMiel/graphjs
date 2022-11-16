@@ -26,7 +26,7 @@ class Graph {
     this.friction = 0.05;
 
     this.points = [];
-    this.functions = [];
+    this.functions = {};
 
     this.wrapElement = wrapper;
     this.uiElement = null;
@@ -327,14 +327,18 @@ class Graph {
     this.points.push(point);
   }
 
-  addFunction(fnc, color) {
+  addFunction(id, fnc, color) {
     if(!fnc.color) {
       if(!color){
-        color = this.colorList[this.functions.length];
+        color = this.colorList[Object.keys(this.functions).length];
       }
       fnc.setColor(color);
     }
-    this.functions.push(fnc);
+    this.functions[id] = fnc;
+  }
+
+  removeFunction(id) {
+    delete this.functions[id];
   }
 
   updatePoints() {
@@ -350,8 +354,8 @@ class Graph {
   }
 
   renderFunctions() {
-    for (let i = 0; i < this.functions.length; i++) {
-      this.functions[i].render(this.ctx, this.origin, this.gridDim, this.ppm, this.scale);
+    for (const fnc in this.functions) {
+      this.functions[fnc].render(this.ctx, this.origin, this.gridDim, this.ppm, this.scale);
     }
   }
 
@@ -697,8 +701,9 @@ class Point {
 }
 
 class Function {
-  constructor(color) {
+  constructor(fn, color) {
     this.color = color;
+    this.fn = fn;
   }
 
   setColor(color){
@@ -717,6 +722,13 @@ class Function {
 
     // Add path of function to grid
 
+    // Check if function is valid
+    try{
+      this.fn({ x: 1 });
+    } catch(err) {
+      return;
+    }
+
     ctx.beginPath();
     ctx.lineWidth = 2;
     ctx.strokeStyle = this.color;
@@ -726,7 +738,8 @@ class Function {
     for(let xPx = 0; xPx <= gridDim.x; xPx+=dx){
       const x = this.pxToM(origin.x, xPx, ppm, scale.x);
 
-      const y = 1.5 * Math.round(x) + Math.sin(x); // function
+      //const y = 1.5 * Math.round(x) + Math.sin(x); // function
+      const y = this.fn({ x });
 
       const yPx = this.mToPx(origin.y, y, ppm, scale.y);
 
