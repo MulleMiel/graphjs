@@ -21,17 +21,21 @@
   <div id="wrapper">
     <div id="canvas-inputs">
       <div class="function">
-        <div class="function-input"></div>
-        <div class="function-input"></div>
-        <div class="function-input"></div>
-        <div class="function-input"></div>
-        <div class="function-input"></div>
-        <div class="function-input"></div>
-        <div class="function-input"></div>
-        <div class="function-input"></div>
-        <div class="function-input"></div>
+        <div class="function-input">3+\frac{4}{PI}\cdot \left(\sin \left(2\cdot PI\cdot x\right)+\frac{1}{3}\cdot \sin \left(3\cdot 2\cdot PI\cdot x\right)+\frac{1}{5}\cdot \sin \left(5\cdot 2\cdot PI\cdot x\right)+\frac{1}{7}\cdot \sin \left(7\cdot 2\cdot PI\cdot x\right)+\frac{1}{9}\cdot \sin \left(9\cdot 2\cdot PI\cdot x\right)+\frac{1}{11}\cdot \sin \left(11\cdot 2\cdot PI\cdot x\right)+\frac{1}{13}\cdot \sin \left(13\cdot 2\cdot PI\cdot x\right)+\frac{1}{15}\cdot \sin \left(15\cdot 2\cdot PI\cdot x\right)+\frac{1}{17}\cdot \sin \left(17\cdot 2\cdot PI\cdot x\right)+\frac{1}{19}\cdot \sin \left(19\cdot 2\cdot PI\cdot x\right)+\frac{1}{21}\cdot \sin \left(21\cdot 2\cdot PI\cdot x\right)\right)</div>
+        <button class="button"><i class="fa-regular fa-trash"></i></button>
+      </div>
+      <div class="function">
+        <div class="function-input">\frac{2}{PI}\cdot \left(\sin \left(2\cdot PI\cdot x\right)+\frac{1}{2}\cdot \sin \left(2\cdot 2\cdot PI\cdot x\right)+\frac{1}{3}\cdot \sin \left(3\cdot 2\cdot PI\cdot x\right)+\frac{1}{4}\cdot \sin \left(4\cdot 2\cdot PI\cdot x\right)+\frac{1}{4}\cdot \sin \left(4\cdot 2\cdot PI\cdot x\right)+\frac{1}{5}\cdot \sin \left(5\cdot 2\cdot PI\cdot x\right)+\frac{1}{6}\cdot \sin \left(6\cdot 2\cdot PI\cdot x\right)+\frac{1}{7}\cdot \sin \left(7\cdot 2\cdot PI\cdot x\right)+\frac{1}{8}\cdot \sin \left(8\cdot 2\cdot PI\cdot x\right)+\frac{1}{9}\cdot \sin \left(9\cdot 2\cdot PI\cdot x\right)+\frac{1}{10}\cdot \sin \left(10\cdot 2\cdot PI\cdot x\right)\right)</div>
+        <button class="button"><i class="fa-regular fa-trash"></i></button>
+      </div>
+      <div class="function">
+        <div class="function-input">\sin \left(2\cdot PI\cdot x\right)</div>
+        <button class="button"><i class="fa-regular fa-trash"></i></button>
+      </div>
+      <div class="function">
         <div class="function-input"></div>
       </div>
+      <div class="button add">Add</div>
     </div>
     <div id="canvas-ui">
       <div id="canvas-outer">
@@ -100,17 +104,43 @@
           } catch(err) {
             grid.removeFunction(mathField.id);
           }
-          
-          
-          //const result = fn(variables = { x: 10 });
-          //console.log(enteredFunction);
-          //console.log(fn);
-          //console.log(result);
-
-          
+        },
+        upOutOf: function(mathField) { 
+          //console.log("up");
+        },
+        moveOutOf: function(dir, mathField) { 
+          if (dir === MQ.L) {
+            //console.log("left");
+          } else {
+            //console.log("right");
+          } 
+        },
+        downOutOf: function(mathField) { 
+          //console.log("down");
+        },
+        enter: function() { 
+          //console.log("enter");
         }
       }
     });
+
+    // Focus
+    mathField.el().querySelector('textarea').addEventListener('focusin', () => {
+      grid.stopAnimation();
+    });
+
+    // Blur
+    mathField.el().querySelector('textarea').addEventListener('focusout', () => {
+      grid.startAnimation();
+    });
+
+    // Execute already entered math
+    const enteredFunction = mathField.latex();
+    if(enteredFunction !== ""){
+      mathField.focus();
+      mathField.keystroke('Spacebar');
+      mathField.keystroke('Backspace');
+    }
   }
   </script>
 

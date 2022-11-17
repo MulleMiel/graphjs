@@ -39,6 +39,7 @@ class Graph {
     this.lastTime = new Date().getTime();
     this.dt = 2;
     this.rdt = this.dt;
+    this.enabled = true;
     this.paused = false;
     this.pausedManual = false;
 
@@ -86,7 +87,9 @@ class Graph {
 
     this.render();
   
-    requestAnimationFrame(this.animate.bind(this));
+    if(this.enabled){
+      requestAnimationFrame(this.animate.bind(this));
+    }
   }
 
   clearCanvas(){
@@ -112,8 +115,10 @@ class Graph {
 
     const fps = Math.round(1 / this.rdt);
     const time = Math.round(this.time * 10) / 10;
+    const ppm = Math.round(this.ppm);
     //const text = `${fps} | ${time}`
 
+    this.ctx.fillText(ppm, 10, this.canvas.height - 24 - 10);
     this.ctx.fillText(time + " / " + this.maxTime, 10, this.canvas.height - 12 - 10);
     this.ctx.fillText(fps, 10, this.canvas.height - 10);
   }
@@ -213,11 +218,11 @@ class Graph {
     }
 
     if(id === "button-pause"){
-      this.pauseManual()
+      this.togglePauseManual();
     }
 
     if(id === "button-replay"){
-      this.replay()
+      this.replay();
     }
   }
 
@@ -297,7 +302,7 @@ class Graph {
     //this.ppm = 62.5; // px per meter
   }
 
-  pauseManual(){
+  togglePauseManual(){
     if(this.pausedManual){
       this.uiElement.classList.remove("paused");
       this.pausedManual = false;
@@ -307,6 +312,15 @@ class Graph {
       this.pausedManual = true;
       this.paused = true;
     }
+  }
+
+  startAnimation(){
+    this.enabled = true;
+    this.animate()
+  }
+
+  stopAnimation(){
+    this.enabled = false;
   }
 
   replay(){
@@ -724,8 +738,9 @@ class Function {
 
     // Check if function is valid
     try{
-      this.fn({ x: 1 });
+      this.fn({ x: 1 }, { PI: 3.14159265359, "pi": 3.14159265359 });
     } catch(err) {
+      //console.log(err)
       return;
     }
 
@@ -738,7 +753,6 @@ class Function {
     for(let xPx = 0; xPx <= gridDim.x; xPx+=dx){
       const x = this.pxToM(origin.x, xPx, ppm, scale.x);
 
-      //const y = 1.5 * Math.round(x) + Math.sin(x); // function
       const y = this.fn({ x });
 
       const yPx = this.mToPx(origin.y, y, ppm, scale.y);
